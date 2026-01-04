@@ -23,3 +23,6 @@ Pages (React UI) → Worker API (`/api/chat`) → Durable Object (session memory
 cd worker
 npm install
 npx wrangler dev
+
+
+User → Pages UI → Worker → Durable Object (memory) → Workers AI → Durable Object → Worker → UI
