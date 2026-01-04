@@ -1,0 +1,16 @@
+name = "cf-ai-study-planner-worker"
+main = "src/index.ts"
+compatibility_date = "2025-12-01"
+
+[ai]
+binding = "AI"
+
+[durable_objects]
+bindings = [
+  { name = "STUDY_SESSION", class_name = "StudySessionDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["StudySessionDO"]
+
