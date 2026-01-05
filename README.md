@@ -62,10 +62,11 @@ Open the URL printed by Vite (usually http://localhost:5173).
 
 LIVE DEPLOYMENT
 
-API (Cloudflare Worker):
+API (Cloudflare Worker): 
 https://cf-ai-study-planner-worker.scottowandmore.workers.dev
 
-The frontend can be deployed to Cloudflare Pages and configured to point to the deployed Worker API.
+FrontEnd: 
+https://cf-ai-study-planner-agent.pages.dev/
 
 NOTES
 
