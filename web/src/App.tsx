@@ -18,6 +18,44 @@ function setNewSessionId() {
   return id;
 }
 
+/**
+ * If the backend ever accidentally returns JSON (or JSON-as-string) inside reply,
+ * this extracts the human reply safely.
+ */
+function normalizeReply(maybe: unknown): string {
+  if (typeof maybe !== "string") return "No reply returned.";
+
+  const s = maybe.trim();
+
+  // If the reply itself is a JSON object string: {"reply":"..."}
+  if (s.startsWith("{") && s.endsWith("}")) {
+    try {
+      const obj = JSON.parse(s);
+      if (obj && typeof obj.reply === "string") return obj.reply;
+      // If it has response.reply shape
+      if (obj?.response && typeof obj.response.reply === "string") return obj.response.reply;
+    } catch {
+      // ignore
+    }
+  }
+
+  // If reply is something like: {"response":{"reply":"..."}} wrapped etc.
+  // Try to find the first JSON object inside the string.
+  const firstBrace = s.indexOf("{");
+  if (firstBrace !== -1) {
+    const candidate = s.slice(firstBrace);
+    try {
+      const obj = JSON.parse(candidate);
+      if (obj && typeof obj.reply === "string") return obj.reply;
+      if (obj?.response && typeof obj.response.reply === "string") return obj.response.reply;
+    } catch {
+      // ignore
+    }
+  }
+
+  return maybe;
+}
+
 export default function App() {
   const [sessionId, setSessionId] = useState(() => getOrCreateSessionId());
   const [input, setInput] = useState("");
@@ -56,24 +94,23 @@ export default function App() {
         body: JSON.stringify({ sessionId, message: msg }),
       });
 
-      const text = await res.text();
+      const raw = await res.text();
       let data: any;
       try {
-        data = JSON.parse(text);
+        data = JSON.parse(raw);
       } catch {
-        data = { reply: text };
+        data = { reply: raw };
       }
 
       if (!res.ok) {
-        setLastError(`Error ${res.status}: ${data?.error ?? text}`);
-        setMsgs((m) => [
-          ...m,
-          { role: "assistant", text: `Sorry — I hit an error.\n${data?.error ?? text}` },
-        ]);
+        const errText = `Error ${res.status}: ${data?.error ?? raw}`;
+        setLastError(errText);
+        setMsgs((m) => [...m, { role: "assistant", text: `Sorry — I hit an error.\n${data?.error ?? raw}` }]);
         return;
       }
 
-      setMsgs((m) => [...m, { role: "assistant", text: data?.reply ?? "No reply returned." }]);
+      const replyText = normalizeReply(data?.reply ?? "No reply returned.");
+      setMsgs((m) => [...m, { role: "assistant", text: replyText }]);
     } catch (err: any) {
       const msg = `Network error: ${err?.message ?? String(err)}`;
       setLastError(msg);
@@ -102,9 +139,7 @@ export default function App() {
         <header style={styles.header}>
           <div>
             <h1 style={styles.title}>Study Planner Agent</h1>
-            <p style={styles.subtitle}>
-              Cloudflare Workers AI + Durable Objects (memory per session)
-            </p>
+            <p style={styles.subtitle}>Cloudflare Workers AI + Durable Objects (memory per session)</p>
           </div>
 
           <div style={styles.headerActions}>
@@ -164,7 +199,7 @@ export default function App() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
-              placeholder="e.g., PSTAT midterm Jan 18, 3 hours/week, topics: distributions + hypothesis testing"
+              placeholder="e.g., PSTAT midterm in 1 week, 3 hours/week, topics: distributions + hypothesis testing"
               disabled={loading}
             />
             <button style={styles.primaryBtn} onClick={send} disabled={loading || !input.trim()}>
@@ -187,14 +222,13 @@ const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: "100vh",
     padding: "32px 20px",
-    background: "#f8fafc", // light neutral
+    background: "#f8fafc",
     color: "#0f172a",
-    fontFamily:
-      "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial",
   },
 
   container: {
-    maxWidth: 1200, // wider so it doesn't hug the left
+    maxWidth: 1200,
     margin: "0 auto",
     display: "flex",
     flexDirection: "column",
@@ -240,8 +274,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   code: {
-    fontFamily:
-      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
     fontSize: 12,
     background: "#f1f5f9",
     padding: "2px 6px",
@@ -249,8 +282,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   codeSmall: {
-    fontFamily:
-      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
     fontSize: 11,
     background: "#f1f5f9",
     padding: "2px 6px",
@@ -293,8 +325,9 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: "75%",
     borderRadius: 16,
     padding: "12px 14px",
-    lineHeight: 1.4,
+    lineHeight: 1.45,
     fontSize: 14,
+    whiteSpace: "pre-wrap", // IMPORTANT: renders line breaks in schedules nicely
   },
 
   agentBubble: {
@@ -367,4 +400,3 @@ const styles: Record<string, React.CSSProperties> = {
     paddingLeft: 6,
   },
 };
-
