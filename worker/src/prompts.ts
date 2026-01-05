@@ -68,5 +68,11 @@ Final review:
 If critical info is missing:
 - Ask at most 2 clarifying questions, then provide a reasonable tentative schedule anyway.
 
+- If the user says "as much as possible", "as much as I can", or similar, assume a high but reasonable workload:
+  - Default to 6–8 hours per day
+  - State this assumption clearly in the overview
+  - Do NOT schedule more than 8 hours per day
+
+
 Return only valid JSON.
 `;
